@@ -35,13 +35,23 @@ const limiter = rateLimit({
 
 // ── Middlewares ──────────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(
-  cors({
-    origin: env.CORS_ORIGIN,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  })
-);
+// ── CORS Configuration ────────────────────────────────────────────────────────
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [env.CORS_ORIGIN, 'http://localhost:3000', 'http://127.0.0.1:3000'];
+    if (!origin || env.NODE_ENV !== 'production' || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+};
+
+// ── Middlewares ──────────────────────────────────────────────────────────────
+app.use(helmet());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
@@ -59,11 +69,7 @@ app.use('/api/', limiter);
 
 // ── Socket.io Setup ──────────────────────────────────────────────────────────
 const io = new Server(server, {
-  cors: {
-    origin: env.CORS_ORIGIN,
-    credentials: true,
-    methods: ['GET', 'POST'],
-  },
+  cors: corsOptions,
 });
 
 const socketEmitters = setupSocket(io);
